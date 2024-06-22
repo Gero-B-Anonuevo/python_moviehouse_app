@@ -1,18 +1,18 @@
 class Movie:
     def __init__(self, id, title, genre, cost):
         self.__id = id
-        self.__title = title
+        self.title = title
         self.__genre = genre
         self.__cost = cost
 
     def __str__(self):
-        return f"{self.__id} - {self.__title}"
+        return f"{self.__id} - {self.title}"
     
     def get_id(self):
         return self.__id
     
     def get_title(self):
-        return self.__title
+        return self.title
     
     def get_genre(self):
         return self.__genre
@@ -25,8 +25,8 @@ class Movie:
         return self.__id
     
     def set_title(self, title):
-        self.__title = title
-        return self.__title
+        self.title = title
+        return self.title
     
     def set_genre(self, genre):
         self.__genre = genre
@@ -54,13 +54,13 @@ class Room:
     def set_cost(self, cost):
         self.__cost = cost
         return self.__cost
-#UNSURE ------------------------------------------
+
 class Record:
     def __init__(self, id, room_id, total_cost, movies: list[Movie], is_finished = True):
         self.__id = id
         self.__room_id = room_id
         self.__total_cost = total_cost
-        self.__movies = movies
+        self.movies = movies
         self.__is_finished = is_finished
 
     def get_id(self):
@@ -73,7 +73,7 @@ class Record:
         return self.__total_cost
     
     def get_movies(self):
-        return self.__movies
+        return self.movies
     
     def get_is_finished(self):
         return self.__is_finished
@@ -91,8 +91,8 @@ class Record:
         return self.__total_cost
     
     def set_movies(self, movies):
-        self.__movies = movies
-        return self.__movies
+        self.movies = movies
+        return self.movies
     
     def set_is_finished(self, is_finished):
         self.__is_finished = is_finished

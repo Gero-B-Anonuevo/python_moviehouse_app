@@ -34,70 +34,72 @@ class MovieHouseDatabaseManager:
             cursor.execute(movie_update_query, movie_update_tuple)
         db_conn.close()
 
-    def retrieve_movies(self, genres:list[str] = []) -> list[Movie]:
-        db_conn = self.get_connection()
-        cursor = db_conn.cursor()
-        if genres == []:
-            with db_conn:
-                movie_retrieve_query = '''SELECT * FROM movie WHERE is_deleted = 0'''
-                movie_retrieve_tuple = (genres, )
-                cursor.execute(movie_retrieve_query, movie_retrieve_tuple)
-                movie_info = cursor.fetchall()
-                db_conn.close()
+    def retrieve_movies(self, genres) -> list [Movie]:
+        conn = self.get_connection()
+        c = conn.cursor()
+        if len(genres) == 0:
+            moviesFetched = c.execute("""SELECT 
+                                        id, 
+                                        title, 
+                                        genre, 
+                                        cost 
+                                    FROM movie
+                                    WHERE is_deleted = False
+                                    """).fetchall()
         else:
-            with db_conn:
-                movie_retrieve_query = '''SELECT * FROM movie WHERE genre=:genre AND is_deleted = 0'''
-                movie_retrieve_tuple = {'genre':genres,}
-                cursor.execute(movie_retrieve_query, movie_retrieve_tuple)
-                movie_info = cursor.fetchall()
-                db_conn.close()
-
-        movie_list = [Movie(*movie_data) for movie_data in movie_info]
-        return movie_list
+            moviesFetched = c.execute(f"""
+                                      SELECT 
+                                        id, 
+                                        title, 
+                                        genre, 
+                                        cost 
+                                      FROM movie 
+                                      WHERE genre in ({",".join("?" * len(genres))}) AND is_deleted = False
+                                      """, (genres)
+                                      ).fetchall()
+        movies = list(map(lambda x: Movie(*x), moviesFetched)) 
+        conn.close()
+        return movies
     
     def retrieve_rooms(self) -> list[Room]:
-        db_conn = self.get_connection()
-        cursor = db_conn.cursor()
-        with db_conn:
-            room_retrieve_query = '''SELECT * FROM room'''
-            cursor.execute(room_retrieve_query)
-            room_data = cursor.fetchall()
-            db_conn.close()
-                 
-        rooms_list = [Room(*room_data) for room_data in room_data]
-        return rooms_list
+        conn = self.get_connection()
+        c = conn.cursor()
+        rooomsFetched = c.execute('SELECT * FROM room').fetchall() 
+        rooms = [Room(*x) for x in rooomsFetched]
+        conn.close() 
+        return rooms
 
     def retrieve_record(self, room_id) -> Record:
-        db_conn = self.get_connection()
-        cursor = db_conn.cursor()
-        try:
-            with db_conn:
-                get_record_query = '''SELECT * FROM room_record WHERE room_id=? AND is_finished = 0 ORDER BY id DESC LIMIT 1'''
-                get_record_tuple = (room_id,)
-                cursor.execute(get_record_query, get_record_tuple)
-                data = cursor.fetchone()
-                if data:
-                    record_id, room_id, total_cost, is_finished = data
-                    get_movie_record_query = '''SELECT movie.id, movie.title, movie.genre, movie.cost 
-                    FROM movie 
-                    JOIN room_movie_record 
-                    ON movie.id = room_movie_record.movie_id 
-                    WHERE room_movie_record.room_record_id = ?''' 
-                    get_movie_record_tuple = (record_id,)
-                    cursor.execute(get_movie_record_query, get_movie_record_tuple)
-
-                    movie_data = cursor.fetchall()
-                    db_conn.close()
-                    movies = [Movie(*movie_data) for movie_data in movie_data]
-
-                    return Record(record_id, room_id, total_cost, movies)
-                else:
-                    db_conn.close()
-                    return Record(0, room_id, 0, [])
-                
-        except Exception as error:
-            db_conn.close()
-            return None
+        conn = self.get_connection()
+        c = conn.cursor() # Create a cursor object 
+        room_record = c.execute(f"""
+                                SELECT * 
+                                FROM room_record 
+                                WHERE room_id = {room_id} 
+                                ORDER BY id DESC 
+                                LIMIT 1
+                                """).fetchall()
+        if len(room_record) == 0:
+            return Record(0, room_id, 0, [], True)
+        else:
+            id, dummy_room_id, total_cost, is_finished = room_record[0] 
+            moviesFetched = c.execute(f"""
+                                    SELECT 
+                                        m.id,
+                                        m.title,
+                                        m.genre,
+                                        m.cost
+                                    FROM room_record rr
+                                    JOIN room_movie_record rmr
+                                        ON rr.id = rmr.room_record_id
+                                    JOIN movie m
+                                        ON rmr.movie_id = m.id
+                                    WHERE rr.is_finished = False AND rr.id = {id}
+                      """).fetchall() 
+            if len(moviesFetched) == 0: 
+                return Record(id, room_id, total_cost, [], True)
+            movies = [Movie(*x) for x in moviesFetched]
+            return Record(id, room_id, total_cost, movies, is_finished)
 
     def check_in(self, room_id, movies) -> bool:
         db_conn = self.get_connection()
